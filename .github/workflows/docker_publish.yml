@@ -66,12 +66,15 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}
           tags: |
             type=raw,value=latest-${{ matrix.suffix }},enable={{is_default_branch}}
-            type=raw,value=release-${{ matrix.suffix }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=semver,pattern={{version}}-${{ matrix.suffix }}
+            type=semver,pattern={{major}}.{{minor}}-${{ matrix.suffix }}
+            type=semver,pattern={{major}}-${{ matrix.suffix }}
             type=ref,event=branch,suffix=-${{ matrix.suffix }}
             type=ref,event=pr,suffix=-${{ matrix.suffix }}
             type=schedule,pattern=weekly-{{date 'YYYYMMDD'}}-${{ matrix.suffix }}
 
       - name: Build and push
+        id: build-push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -87,7 +90,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
+          digest="${{ steps.build-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
@@ -146,22 +149,25 @@ jobs:
       - name: Create multi-arch manifest for release
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          # Extract version from tag
-          VERSION=${GITHUB_REF#refs/tags/v}
+          # Extract version from tag (remove 'v' prefix if present)
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}
 
-          # Docker Hub
-          docker buildx imagetools create -t ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release \
+          # Docker Hub - Create version-specific tags
+          docker buildx imagetools create \
             -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
-            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-amd64 \
-            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-arm64 \
-            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-arm
+            -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-amd64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm
 
-          # GitHub Container Registry
-          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release \
+          # GitHub Container Registry - Create version-specific tags
+          docker buildx imagetools create \
             -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
-            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-amd64 \
-            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-arm64 \
-            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-arm
+            -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-amd64 \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm64 \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm
 
       - name: Inspect multi-arch images
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
@@ -172,8 +178,10 @@ jobs:
           fi
 
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            docker buildx imagetools inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release
-            docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release
+            VERSION=${GITHUB_REF#refs/tags/}
+            VERSION=${VERSION#v}
+            docker buildx imagetools inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}
+            docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}
           fi
 
   security-scan:
@@ -185,10 +193,21 @@ jobs:
       matrix:
         arch: [amd64, arm64, arm]
     steps:
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "tag=latest-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+            VERSION=${VERSION#v}
+            echo "tag=${VERSION}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-${{ matrix.arch }}"
+          image-ref: "ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"
           format: "sarif"
           output: "trivy-results-${{ matrix.arch }}.sarif"
 
