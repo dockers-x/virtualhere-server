@@ -14,6 +14,7 @@ on:
     - cron: "0 2 * * 0"
 
 env:
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   REGISTRY_IMAGE: virtualhere-server
 
 jobs:
@@ -63,7 +64,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}
           tags: |
             type=raw,value=latest-${{ matrix.suffix }},enable={{is_default_branch}}
@@ -133,10 +134,10 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           # Docker Hub
-          docker buildx imagetools create -t ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-amd64 \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-arm64 \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-arm
+          docker buildx imagetools create -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-amd64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-arm64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-arm
 
           # GitHub Container Registry
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest \
@@ -152,10 +153,10 @@ jobs:
 
           # Docker Hub
           docker buildx imagetools create -t ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release \
-            -t ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-amd64 \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-arm64 \
-            ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release-arm
+            -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-amd64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-arm64 \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release-arm
 
           # GitHub Container Registry
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release \
@@ -168,12 +169,12 @@ jobs:
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker buildx imagetools inspect ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest
+            docker buildx imagetools inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest
             docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest
           fi
 
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            docker buildx imagetools inspect ${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release
+            docker buildx imagetools inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:release
             docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:release
           fi
 
