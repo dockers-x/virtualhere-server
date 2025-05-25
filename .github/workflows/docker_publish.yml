@@ -2,16 +2,14 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - "v*.*.*"
-  pull_request:
-    branches:
-      - main
-  schedule:
-    # Weekly build to get latest VirtualHere binaries
-    - cron: "0 2 * * 0"
+      - "*"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
 
 env:
   DOCKER_HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
