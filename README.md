@@ -24,21 +24,21 @@ docker run -d --name virtualhere --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v virtualhere-data:/data \
   -p 7575:7575 \
-  yourusername/virtualhere-server:latest-amd64
+  czyt/virtualhere-server:latest-amd64
 
 # For ARM64 systems (Raspberry Pi 4, Apple Silicon, etc.)
 docker run -d --name virtualhere --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v virtualhere-data:/data \
   -p 7575:7575 \
-  yourusername/virtualhere-server:latest-arm64
+  czyt/virtualhere-server:latest-arm64
 
 # For ARM systems (Raspberry Pi 3 and older)
 docker run -d --name virtualhere --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v virtualhere-data:/data \
   -p 7575:7575 \
-  yourusername/virtualhere-server:latest-arm
+  czyt/virtualhere-server:latest-arm
 ```
 
 ### Multi-Architecture Image (Recommended)
@@ -50,7 +50,7 @@ docker run -d --name virtualhere --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v virtualhere-data:/data \
   -p 7575:7575 \
-  yourusername/virtualhere-server:latest
+  czyt/virtualhere-server:latest
 ```
 
 ## Available Tags
@@ -71,8 +71,8 @@ docker run -d --name virtualhere --privileged \
 
 ### Registry URLs
 
-- **Docker Hub**: `yourusername/virtualhere-server:latest`
-- **GitHub Container Registry**: `ghcr.io/yourusername/virtualhere-server:latest`
+- **Docker Hub**: `czyt/virtualhere-server:latest`
+- **GitHub Container Registry**: `ghcr.io/dockers-x/virtualhere-server:latest`
 
 ## Architecture Detection
 
@@ -108,7 +108,7 @@ The system automatically selects the appropriate image based on your architectur
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/virtualhere-docker.git
+git clone https://github.com/dockers-x/virtualhere-docker.git
 cd virtualhere-docker
 
 # Build for specific architecture
