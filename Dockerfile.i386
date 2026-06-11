@@ -1,0 +1,19 @@
+# VirtualHere USB Server Docker Image for Linux i386
+FROM --platform=$BUILDPLATFORM alpine:3.20 AS downloader
+
+ARG VIRTUALHERE_URL=https://www.virtualhere.com/sites/default/files/usbserver/vhusbdi386
+
+RUN apk add --no-cache ca-certificates wget && \
+    wget -O /virtualhere "${VIRTUALHERE_URL}" && \
+    chmod +x /virtualhere
+
+FROM scratch
+
+WORKDIR /data
+
+EXPOSE 7575
+VOLUME ["/data"]
+
+COPY --from=downloader /virtualhere /app/virtualhere
+
+ENTRYPOINT ["/app/virtualhere"]

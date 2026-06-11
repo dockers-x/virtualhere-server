@@ -22,6 +22,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - platform: linux/386
+            dockerfile: Dockerfile.i386
+            suffix: i386
           - platform: linux/amd64
             dockerfile: Dockerfile
             suffix: amd64
@@ -31,6 +34,15 @@ jobs:
           - platform: linux/arm/v7
             dockerfile: Dockerfile.arm
             suffix: arm
+          - platform: linux/mips
+            dockerfile: Dockerfile.mips
+            suffix: mips
+          - platform: linux/mipsle
+            dockerfile: Dockerfile.mipsel
+            suffix: mipsel
+          - platform: linux/riscv64
+            dockerfile: Dockerfile.riscv64
+            suffix: riscv64
 
     steps:
       - name: Checkout
@@ -65,7 +77,7 @@ jobs:
             ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}
           tags: |
-            type=raw,value=latest-${{ matrix.suffix }},enable={{is_default_branch}}
+            type=raw,value=latest-${{ matrix.suffix }},enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
             type=semver,pattern={{version}}-${{ matrix.suffix }}
             type=semver,pattern={{major}}.{{minor}}-${{ matrix.suffix }}
             type=semver,pattern={{major}}-${{ matrix.suffix }}
@@ -136,15 +148,23 @@ jobs:
         run: |
           # Docker Hub
           docker buildx imagetools create -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-i386 \
             ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-amd64 \
             ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-arm64 \
-            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-arm
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-arm \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-mips \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-mipsel \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest-riscv64
 
           # GitHub Container Registry
           docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-i386 \
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-amd64 \
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-arm64 \
-            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-arm
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-arm \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-mips \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-mipsel \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest-riscv64
 
       - name: Create multi-arch manifest for release
         if: startsWith(github.ref, 'refs/tags/')
@@ -157,17 +177,25 @@ jobs:
           docker buildx imagetools create \
             -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
             -t ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-i386 \
             ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-amd64 \
             ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm64 \
-            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-mips \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-mipsel \
+            ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-riscv64
 
           # GitHub Container Registry - Create version-specific tags
           docker buildx imagetools create \
             -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION} \
             -t ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:latest \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-i386 \
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-amd64 \
             ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm64 \
-            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-arm \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-mips \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-mipsel \
+            ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}-riscv64
 
       - name: Inspect multi-arch images
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
@@ -183,4 +211,3 @@ jobs:
             docker buildx imagetools inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.REGISTRY_IMAGE }}:${VERSION}
             docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}
           fi
-

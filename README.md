@@ -1,49 +1,34 @@
 # VirtualHere USB Server Docker
 
-A Docker container for running VirtualHere USB Server with pre-downloaded binaries, supporting multiple architectures with dedicated Dockerfiles.
+Docker images for running VirtualHere USB Server with the official Linux server
+binaries downloaded at build time.
 
-## Features
+The generic Linux builds are sourced from the official VirtualHere download page:
+https://www.virtualhere.com/usb_server_software
 
-- 🚀 **Pre-downloaded binaries** - Architecture-specific binaries downloaded during build
-- 🏗️ **Multi-architecture support** - Separate Dockerfiles for AMD64, ARM64, ARM
-- 🔄 **Automated builds** - GitHub Actions CI/CD pipeline
-- 📦 **Multi-registry publishing** - Docker Hub and GitHub Container Registry
-- 🔒 **Security scanning** - Automated vulnerability scanning with Trivy
-- 📊 **Health checks** - Built-in container health monitoring
-- 🏷️ **Simple tagging** - Only `latest` and `release` tags
+## Supported Architectures
+
+| VirtualHere build | Docker platform | Image suffix | Dockerfile | Download URL |
+| --- | --- | --- | --- | --- |
+| Linux i386 | `linux/386` | `i386` | `Dockerfile.i386` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdi386` |
+| Linux x86_64 | `linux/amd64` | `amd64` | `Dockerfile` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdx86_64` |
+| Linux ARM 32-bit | `linux/arm/v7` | `arm` | `Dockerfile.arm` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdarm` |
+| Linux ARM64 | `linux/arm64` | `arm64` | `Dockerfile.arm64` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdarm64` |
+| Linux MIPS big-endian | `linux/mips` | `mips` | `Dockerfile.mips` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdmips` |
+| Linux MIPS little-endian | `linux/mipsle` | `mipsel` | `Dockerfile.mipsel` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdmipsel` |
+| Linux RISCV64 | `linux/riscv64` | `riscv64` | `Dockerfile.riscv64` | `https://www.virtualhere.com/sites/default/files/usbserver/vhusbdriscv64` |
+
+`amd64`, `arm64`, and `arm` images use Ubuntu and include the shared startup
+script plus `usbutils` diagnostics. `i386`, `mips`, `mipsel`, and `riscv64`
+use minimal `scratch` images because common base images do not reliably cover
+all of those targets. The VirtualHere server binary is statically compiled, so
+the minimal images can run it directly, but they do not include a shell,
+`lsusb`, or `docker exec` debugging tools.
 
 ## Quick Start
 
-### Architecture-Specific Images
-
-Choose the appropriate image for your system:
-
-```bash
-# For AMD64/x86_64 systems
-docker run -d --name virtualhere --privileged \
-  -v /dev/bus/usb:/dev/bus/usb \
-  -v virtualhere-data:/data \
-  -p 7575:7575 \
-  czyt/virtualhere-server:latest-amd64
-
-# For ARM64 systems (Raspberry Pi 4, Apple Silicon, etc.)
-docker run -d --name virtualhere --privileged \
-  -v /dev/bus/usb:/dev/bus/usb \
-  -v virtualhere-data:/data \
-  -p 7575:7575 \
-  czyt/virtualhere-server:latest-arm64
-
-# For ARM systems (Raspberry Pi 3 and older)
-docker run -d --name virtualhere --privileged \
-  -v /dev/bus/usb:/dev/bus/usb \
-  -v virtualhere-data:/data \
-  -p 7575:7575 \
-  czyt/virtualhere-server:latest-arm
-```
-
-### Multi-Architecture Image (Recommended)
-
-The multi-arch manifest automatically selects the correct image:
+Use the multi-architecture tag when your Docker runtime can select a matching
+platform from the manifest:
 
 ```bash
 docker run -d --name virtualhere --privileged \
@@ -53,154 +38,169 @@ docker run -d --name virtualhere --privileged \
   czyt/virtualhere-server:latest
 ```
 
-## Available Tags
+Use an architecture-specific tag when you want to pin the target image:
 
-### Docker Hub & GitHub Container Registry
+```bash
+docker run -d --name virtualhere --privileged \
+  -v /dev/bus/usb:/dev/bus/usb \
+  -v virtualhere-data:/data \
+  -p 7575:7575 \
+  czyt/virtualhere-server:latest-amd64
+```
 
-| Tag | Description | Architectures |
-|-----|-------------|---------------|
-| `latest` | Latest build from main branch | Multi-arch (amd64, arm64, arm) |
-| `latest-amd64` | Latest AMD64 build | amd64 |
-| `latest-arm64` | Latest ARM64 build | arm64 |
-| `latest-arm` | Latest ARM build | arm/v7 |
-| `release` | Latest tagged release | Multi-arch (amd64, arm64, arm) |
-| `release-amd64` | Release AMD64 build | amd64 |
-| `release-arm64` | Release ARM64 build | arm64 |
-| `release-arm` | Release ARM build | arm/v7 |
-| `v1.2.3` | Specific version | Multi-arch (amd64, arm64, arm) |
+Replace `latest-amd64` with `latest-i386`, `latest-arm`, `latest-arm64`,
+`latest-mips`, `latest-mipsel`, or `latest-riscv64` as needed.
 
-### Registry URLs
+## Registries
 
-- **Docker Hub**: `czyt/virtualhere-server:latest`
-- **GitHub Container Registry**: `ghcr.io/dockers-x/virtualhere-server:latest`
+- Docker Hub: `czyt/virtualhere-server`
+- GitHub Container Registry: `ghcr.io/dockers-x/virtualhere-server`
+
+Both registries are published by the GitHub Actions workflow.
+
+## Tags
+
+| Tag | Description |
+| --- | --- |
+| `latest` | Multi-architecture manifest for the latest published build |
+| `latest-<arch>` | Latest architecture-specific image, for example `latest-arm64` |
+| `<version>` | Multi-architecture manifest for a tagged release, for example `1.2.3` |
+| `<version>-<arch>` | Architecture-specific tagged release, for example `1.2.3-riscv64` |
+
+Supported `<arch>` suffixes are `i386`, `amd64`, `arm`, `arm64`, `mips`,
+`mipsel`, and `riscv64`.
 
 ## Architecture Detection
 
-The system automatically selects the appropriate image based on your architecture:
+Common `uname -m` values map to these tags:
 
-- **x86_64** → `latest-amd64` (Intel/AMD 64-bit)
-- **aarch64** → `latest-arm64` (ARM 64-bit)
-- **armv7l** → `latest-arm` (ARM 32-bit)
+| `uname -m` | Recommended tag |
+| --- | --- |
+| `i386`, `i486`, `i586`, `i686` | `latest-i386` |
+| `x86_64` | `latest-amd64` |
+| `armv6l`, `armv7l`, `armhf` | `latest-arm` |
+| `aarch64`, `arm64` | `latest-arm64` |
+| `mips` | `latest-mips` |
+| `mipsel` | `latest-mipsel` |
+| `riscv64` | `latest-riscv64` |
 
-## Project Structure
-
-```
-.
-├── Dockerfile.amd64          # AMD64 specific build
-├── Dockerfile.arm64          # ARM64 specific build
-├── Dockerfile.arm            # ARM specific build
-├── start-virtualhere.sh      # Startup script (shared)
-├── docker-compose.yml        # Docker Compose config
-├── .github/
-│   └── workflows/
-│       └── build.yml         # CI/CD pipeline
-└── README.md
-```
-
-## Building from Source
-
-### Prerequisites
-
-- Docker with BuildKit support
-- Git
-
-### Build Commands
+## Building Locally
 
 ```bash
-# Clone the repository
-git clone https://github.com/dockers-x/virtualhere-docker.git
-cd virtualhere-docker
+git clone https://github.com/dockers-x/virtualhere-server.git
+cd virtualhere-server
 
-# Build for specific architecture
-docker build -f Dockerfile.amd64 -t virtualhere-server:amd64 .
-docker build -f Dockerfile.arm64 -t virtualhere-server:arm64 .
+docker build -f Dockerfile.i386 -t virtualhere-server:i386 .
+docker build -f Dockerfile -t virtualhere-server:amd64 .
 docker build -f Dockerfile.arm -t virtualhere-server:arm .
+docker build -f Dockerfile.arm64 -t virtualhere-server:arm64 .
+docker build -f Dockerfile.mips -t virtualhere-server:mips .
+docker build -f Dockerfile.mipsel -t virtualhere-server:mipsel .
+docker build -f Dockerfile.riscv64 -t virtualhere-server:riscv64 .
+```
 
-# Build for current architecture (auto-detect)
+For cross-platform builds, use Buildx:
+
+```bash
+docker buildx build --platform linux/riscv64 \
+  -f Dockerfile.riscv64 \
+  -t virtualhere-server:riscv64 .
+```
+
+Auto-detect a local architecture and choose the matching Dockerfile:
+
+```bash
 ARCH=$(uname -m)
 case "$ARCH" in
-  x86_64) docker build -f Dockerfile.amd64 -t virtualhere-server . ;;
-  aarch64) docker build -f Dockerfile.arm64 -t virtualhere-server . ;;
-  armv7l) docker build -f Dockerfile.arm -t virtualhere-server . ;;
+  i386|i486|i586|i686) docker build -f Dockerfile.i386 -t virtualhere-server . ;;
+  x86_64) docker build -f Dockerfile -t virtualhere-server . ;;
+  armv6l|armv7l|armhf) docker build -f Dockerfile.arm -t virtualhere-server . ;;
+  aarch64|arm64) docker build -f Dockerfile.arm64 -t virtualhere-server . ;;
+  mips) docker build -f Dockerfile.mips -t virtualhere-server . ;;
+  mipsel) docker build -f Dockerfile.mipsel -t virtualhere-server . ;;
+  riscv64) docker build -f Dockerfile.riscv64 -t virtualhere-server . ;;
+  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
 esac
 ```
 
-## GitHub Actions Setup
+## Project Structure
 
-To enable automated builds, configure these secrets in your GitHub repository:
+```text
+.
+|-- Dockerfile              # x86_64 / amd64 build
+|-- Dockerfile.i386         # i386 build
+|-- Dockerfile.arm          # ARM 32-bit build
+|-- Dockerfile.arm64        # ARM64 build
+|-- Dockerfile.mips         # MIPS big-endian build
+|-- Dockerfile.mipsel       # MIPS little-endian build
+|-- Dockerfile.riscv64      # RISCV64 build
+|-- start-virtualhere.sh    # Shared startup script for Ubuntu-based images
+|-- .github/workflows/
+|   `-- docker_publish.yml  # CI/CD pipeline
+`-- README.md
+```
+
+## GitHub Actions
+
+The workflow builds each architecture as a separate image, publishes
+architecture-specific tags, and then creates a multi-architecture manifest for
+`latest` and version tags.
+
+Required repository secrets:
 
 | Secret | Description |
-|--------|-------------|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | Docker Hub username |
 | `DOCKERHUB_TOKEN` | Docker Hub access token |
 
-The workflow will automatically:
-- Build multi-architecture images on push to main branch
-- Create releases on git tags
-- Perform weekly builds to get latest VirtualHere binaries
-- Run security scans with Trivy
+GitHub Container Registry publishing uses the built-in `GITHUB_TOKEN`.
 
 ## Troubleshooting
 
-### Container won't start
+### Container cannot access USB devices
 
-1. Check if the container has USB access:
-   ```bash
-   docker exec virtualhere lsusb
-   ```
-
-2. Verify USB devices are mounted:
-   ```bash
-   ls -la /dev/bus/usb/
-   ```
-
-### No USB devices detected
-
-1. Ensure the host has USB devices connected
-2. Check container is running with `--privileged` or proper device access
-3. Verify udev rules on the host system
-
-### Connection issues
-
-1. Check if port 7575 is accessible:
-   ```bash
-   netstat -tuln | grep 7575
-   ```
-
-2. Verify firewall settings on the host
-3. Test connection from VirtualHere client
-
-### Logs and Debugging
+Run the container with USB device access:
 
 ```bash
-# View container logs
-docker logs virtualhere
-
-# Interactive shell access
-docker exec -it virtualhere /bin/bash
-
-# Check running processes
-docker exec virtualhere ps aux
+docker run --privileged \
+  -v /dev/bus/usb:/dev/bus/usb \
+  -p 7575:7575 \
+  czyt/virtualhere-server:latest
 ```
 
-## Contributing
+On Ubuntu-based images, check USB visibility:
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make your changes and test them
-4. Submit a pull request
+```bash
+docker exec virtualhere lsusb
+```
+
+Minimal `scratch` images do not include `lsusb` or a shell. Use host-side USB
+diagnostics for those targets.
+
+### Port 7575 is not reachable
+
+Check that the port is published and not blocked by the host firewall:
+
+```bash
+docker ps --filter name=virtualhere
+netstat -tuln | grep 7575
+```
+
+### Logs
+
+```bash
+docker logs virtualhere
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
-## Acknowledgments
+VirtualHere USB Server itself is distributed by VirtualHere. Review the
+VirtualHere licensing terms before production or multi-device use.
 
-- [VirtualHere](https://virtualhere.com/) for the excellent USB sharing software
-- The Docker community for best practices and tools
+## Links
 
-## Support
-
-- 📖 [VirtualHere Documentation](https://virtualhere.com/usb_server_software)
-- 🐛 [Report Issues](https://github.com/yourusername/virtualhere-docker/issues)
-- 💬 [Discussions](https://github.com/yourusername/virtualhere-docker/discussions)
+- VirtualHere USB Server downloads: https://www.virtualhere.com/usb_server_software
+- VirtualHere client downloads: https://www.virtualhere.com/usb_client_software
+- VirtualHere install script: https://github.com/virtualhere/script
