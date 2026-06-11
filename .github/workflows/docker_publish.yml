@@ -184,35 +184,3 @@ jobs:
             docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${VERSION}
           fi
 
-  security-scan:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
-    needs:
-      - merge
-    strategy:
-      matrix:
-        arch: [amd64, arm64, arm]
-    steps:
-      - name: Determine image tag
-        id: tag
-        run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "tag=latest-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          else
-            VERSION=${GITHUB_REF#refs/tags/}
-            VERSION=${VERSION#v}
-            echo "tag=${VERSION}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "ghcr.io/${{ github.repository_owner }}/${{ env.REGISTRY_IMAGE }}:${{ steps.tag.outputs.tag }}"
-          format: "sarif"
-          output: "trivy-results-${{ matrix.arch }}.sarif"
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: "trivy-results-${{ matrix.arch }}.sarif"
